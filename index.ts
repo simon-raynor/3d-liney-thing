@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import Stats from 'three/addons/libs/stats.module.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import Grid from './grids/Grid';
+import Grid from './Grid';
 
 
 const stats = new Stats();
@@ -37,13 +37,6 @@ orbCtrls.target = new THREE.Vector3(0, 0, 0);
 orbCtrls.update();
 
 
-/* const C = new THREE.Mesh(
-    new THREE.BoxGeometry(),
-    new THREE.MeshStandardMaterial({ color: 0xff0000 })
-);
-scene.add(C); */
-
-
 const points: number[] = [];
 
 
@@ -56,6 +49,10 @@ const gridtypes = [
 
 const RADIUS = 10;
 
+const paths = [];
+
+
+
 gridtypes.forEach(
     (t, idx) => {
         const shift = idx * 25;
@@ -63,9 +60,13 @@ gridtypes.forEach(
         // @ts-ignore because I CBA
         const grid = new Grid(t);
 
-        points.push(shift, 0, 0);
+        for (let i = 0; i < 100; i++) {
+            const path = grid.randomPathFromCenter(RADIUS);
 
-        grid.directions.forEach(
+            points.push(...path.map((v, idx) => (idx % 3) === 0 ? v + shift : v));
+        }
+
+        /* grid.directions.forEach(
             d => {
                 for (let i = 1; i < RADIUS; i++) {
                     points.push(
@@ -75,7 +76,7 @@ gridtypes.forEach(
                     );
                 }
             }
-        )
+        ) */
     }
 );
 
