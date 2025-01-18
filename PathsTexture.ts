@@ -29,7 +29,7 @@ export default class PathsTexture {
             let length = 0;
     
             if (paths[y]) {
-                curve = new CatmullRomCurve3(paths[y]);
+                curve = new CatmullRomCurve3(paths[y] , false, 'catmullrom', 0.5);
                 length = curve.getLength();
             }
 
