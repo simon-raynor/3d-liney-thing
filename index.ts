@@ -71,15 +71,21 @@ const pathsTexture = new PathsTexture(paths);
 
 const points: number[] = [];
 
+const TRAIL_LENGTH = 200;
+
 for (let i = 0; i < pathsTexture.paths.length; i++) {
-    points.push(
-        (i + 0.5) / pathsTexture.HEIGHT, // first value is which path
-        pathsTexture.pathLengths[i], // length of path
-        //Math.random() + 0.5, // speed
-        Math.random() // time offset
-    );
+    const p = (i + 0.5) / pathsTexture.HEIGHT; // which path we're on
+    const l = pathsTexture.pathLengths[i]; // length of path
+    const t = Math.random(); // random time offset
+
+    for (let i = 0; i < TRAIL_LENGTH; i++) {
+        points.push(
+            p,
+            l,
+            t + ( i / (25 * l) )
+        );
+    }
 }
-console.log(paths, points, pathsTexture.texture.image.data)
 
 
 
@@ -104,19 +110,20 @@ uniform sampler2D pathsTexture;
 
 uniform float t;
 
+varying float T;
+
 void main() {
+    T = fract(
+            position.z + (t / (position.y * 500.))
+        );
+
     vec3 posn = texture2D(
         pathsTexture,
         vec2(
-            mod(
-                t / (position.z + (position.y * 1000.)),
-                1.
-            ),
+            T,
             position.x
         )
     ).xyz;
-
-    //posn = vec3(position.x, 0., 0.);
 
     vec4 mvPosition = viewMatrix * vec4(posn, 1.0);
 
@@ -125,12 +132,18 @@ void main() {
 }
     `,
     fragmentShader: `
+varying float T;
 
 void main() {
-    gl_FragColor = vec4(1., 1., 1., 1.);
+    float rad = length(gl_PointCoord-0.5);
+    float a = smoothstep(0., .1, 1. - T)
+            * (1. - smoothstep(0., .5, rad));
+
+    gl_FragColor = vec4(1., 1., 1., a);
 }
     `,
 
+    transparent: true,
     depthTest: false
 });
 
