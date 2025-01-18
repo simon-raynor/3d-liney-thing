@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import Stats from 'three/addons/libs/stats.module.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import Grid from './Grid';
+import PathsTexture from './PathsTexture';
 
 
 const stats = new Stats();
@@ -37,8 +38,6 @@ orbCtrls.target = new THREE.Vector3(0, 0, 0);
 orbCtrls.update();
 
 
-const points: number[] = [];
-
 
 const gridtypes = [
     'square',
@@ -49,36 +48,40 @@ const gridtypes = [
 
 const RADIUS = 10;
 
-const paths = [];
-
-
+const paths: THREE.Vector3[][] = [];
 
 gridtypes.forEach(
     (t, idx) => {
-        const shift = idx * 25;
+        const shift = new THREE.Vector3(idx * 25, 0, 0);
 
         // @ts-ignore because I CBA
         const grid = new Grid(t);
 
-        for (let i = 0; i < 100; i++) {
+        for (let i = 0; i < 128; i++) {
             const path = grid.randomPathFromCenter(RADIUS);
 
-            points.push(...path.map((v, idx) => (idx % 3) === 0 ? v + shift : v));
+            paths.push(path.map(v => v.add(shift)));
         }
-
-        /* grid.directions.forEach(
-            d => {
-                for (let i = 1; i < RADIUS; i++) {
-                    points.push(
-                        i * d.x + shift,
-                        i * d.y,
-                        i * d.z
-                    );
-                }
-            }
-        ) */
     }
 );
+
+const pathsTexture = new PathsTexture(paths);
+
+
+
+const points: number[] = [];
+
+for (let i = 0; i < pathsTexture.paths.length; i++) {
+    points.push(
+        (i + 0.5) / pathsTexture.HEIGHT, // first value is which path
+        pathsTexture.pathLengths[i], // length of path
+        //Math.random() + 0.5, // speed
+        Math.random() // time offset
+    );
+}
+console.log(paths, points, pathsTexture.texture.image.data)
+
+
 
 const geom = new THREE.BufferGeometry();
 geom.setAttribute('position', new THREE.BufferAttribute(
@@ -86,10 +89,58 @@ geom.setAttribute('position', new THREE.BufferAttribute(
     3
 ));
 
+
+const material = new THREE.ShaderMaterial({
+    uniforms: {
+        pathsTexture: {
+            value: pathsTexture.texture
+        },
+        t: {
+            value: 0
+        }
+    },
+    vertexShader: `
+uniform sampler2D pathsTexture;
+
+uniform float t;
+
+void main() {
+    vec3 posn = texture2D(
+        pathsTexture,
+        vec2(
+            mod(
+                t / (position.z + (position.y * 1000.)),
+                1.
+            ),
+            position.x
+        )
+    ).xyz;
+
+    //posn = vec3(position.x, 0., 0.);
+
+    vec4 mvPosition = viewMatrix * vec4(posn, 1.0);
+
+    gl_Position = projectionMatrix * mvPosition;
+    gl_PointSize = ( 75. / -mvPosition.z );
+}
+    `,
+    fragmentShader: `
+
+void main() {
+    gl_FragColor = vec4(1., 1., 1., 1.);
+}
+    `,
+
+    depthTest: false
+});
+
+
 const P = new THREE.Points(
     geom,
-    new THREE.PointsMaterial()
+    material
 );
+P.frustumCulled = false;
+
 scene.add(P);
 
 
@@ -99,6 +150,7 @@ let t = 0;
 function animate(_t: number) {
     const dt = (_t - t) / 1000;
     t = _t;
+    material.uniforms.t.value = t;
 
     requestAnimationFrame(animate);
 

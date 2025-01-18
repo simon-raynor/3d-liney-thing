@@ -47,7 +47,7 @@ export default class Grid {
     }
 
     randomPathFromCenter(radius = 10) {
-        const points = [0, 0, 0];
+        const points = [new Vector3(0, 0, 0)];
 
         const currentPoint = new Vector3(0, 0, 0);
 
@@ -74,14 +74,16 @@ export default class Grid {
                 return points;
             }
 
-            const d = this.randomDirection();
+            const d = availableDirections[
+                        Math.floor(Math.random() * availableDirections.length)
+                    ];
 
             currentPoint.add(d);
             tmpVec3.copy(currentPoint);
 
-            points.push(currentPoint.x, currentPoint.y, currentPoint.z);
+            points.push(new Vector3(currentPoint.x, currentPoint.y, currentPoint.z));
 
-            visited.add(currentPoint.toArray().join(','));
+            visited.add(currentPoint.toArray().map(n => Math.round(n * 1000) / 1000).join(','));
 
             if (++l > MAX_PATH_LENGTH) break;
         }
