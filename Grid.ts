@@ -64,7 +64,7 @@ export default class Grid {
             this.directions.forEach(d => {
                 tmpVec3.copy(currentPoint).add(d);
 
-                if (!visited.has(tmpVec3.toArray().join(','))) {
+                if (!visited.has(roundCoord(tmpVec3))) {
                     availableDirections.push(d);
                 }
             });
@@ -83,7 +83,7 @@ export default class Grid {
 
             points.push(new Vector3(currentPoint.x, currentPoint.y, currentPoint.z));
 
-            visited.add(currentPoint.toArray().map(n => Math.round(n * 1000) / 1000).join(','));
+            visited.add(roundCoord(currentPoint));
 
             if (++l > MAX_PATH_LENGTH) break;
         }
@@ -91,6 +91,8 @@ export default class Grid {
         return points;
     }
 }
+
+const roundCoord = (coord: Vector3) => coord.toArray().map(n => Math.round(n * 1000) / 1000).join(',');
 
 type GridType = 'square' | 'hex' | 'cube' | 'rhombic';
 type GridDirections = [number, number, number][];

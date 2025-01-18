@@ -57,7 +57,7 @@ gridtypes.forEach(
         // @ts-ignore because I CBA
         const grid = new Grid(t);
 
-        for (let i = 0; i < 128; i++) {
+        for (let i = 0; i < 64; i++) {
             const path = grid.randomPathFromCenter(RADIUS);
 
             paths.push(path.map(v => v.add(shift)));
@@ -128,7 +128,9 @@ void main() {
     vec4 mvPosition = viewMatrix * vec4(posn, 1.0);
 
     gl_Position = projectionMatrix * mvPosition;
-    gl_PointSize = ( 75. / -mvPosition.z );
+    gl_PointSize = ( 75. * ${
+        window.devicePixelRatio/* TODO could this error? it's definitely bad lol */
+    }. / -mvPosition.z );
 }
     `,
     fragmentShader: `
@@ -137,7 +139,7 @@ varying float T;
 void main() {
     float rad = length(gl_PointCoord-0.5);
     float a = smoothstep(0., .1, 1. - T)
-            * (1. - smoothstep(0., .5, rad));
+            * (1. - smoothstep(.25, .5, rad));
 
     gl_FragColor = vec4(1., 1., 1., a);
 }
