@@ -40,27 +40,30 @@ orbCtrls.update();
 
 
 const gridtypes = [
-    'square',
-    'hex',
+    //'square',
+    //'hex',
     'cube',
     'rhombic'
 ];
 
-const RADIUS = 10;
+const RADIUS = 7;
 
 const paths: THREE.Vector3[][] = [];
 
+const posns: number[] = [];
+
+
+const PATHS_PER_TYPE = 25;
+
 gridtypes.forEach(
     (t, idx) => {
-        const shift = new THREE.Vector3(idx * 25, 0, 0);
-
         // @ts-ignore because I CBA
         const grid = new Grid(t);
 
-        for (let i = 0; i < 64; i++) {
+        for (let i = 0; i < PATHS_PER_TYPE; i++) {
             const path = grid.randomPathFromCenter(RADIUS);
 
-            paths.push(path.map(v => v.add(shift)));
+            paths.push(path);
         }
     }
 );
@@ -69,9 +72,9 @@ const pathsTexture = new PathsTexture(paths);
 
 
 
-const points: number[] = [];
+const pathinfo: number[] = [];
 
-const TRAIL_LENGTH = 200;
+const TRAIL_LENGTH = 100;
 
 for (let i = 0; i < pathsTexture.paths.length; i++) {
     const p = (i + 0.5) / pathsTexture.HEIGHT; // which path we're on
@@ -79,11 +82,14 @@ for (let i = 0; i < pathsTexture.paths.length; i++) {
     const t = Math.random(); // random time offset
 
     for (let i = 0; i < TRAIL_LENGTH; i++) {
-        points.push(
+        pathinfo.push(
             p,
             l,
-            t + ( i / (25 * l) )
+            t + ( i / (25 * l) ),
+            i + 1
         );
+
+        posns.push(0, 0, 0);
     }
 }
 
@@ -91,8 +97,12 @@ for (let i = 0; i < pathsTexture.paths.length; i++) {
 
 const geom = new THREE.BufferGeometry();
 geom.setAttribute('position', new THREE.BufferAttribute(
-    new Float32Array(points),
+    new Float32Array(posns),
     3
+));
+geom.setAttribute('pathinfo', new THREE.BufferAttribute(
+    new Float32Array(pathinfo),
+    4
 ));
 
 
@@ -103,43 +113,71 @@ const material = new THREE.ShaderMaterial({
         },
         t: {
             value: 0
+        },
+        totalradius: {
+            value: RADIUS
         }
     },
     vertexShader: `
 uniform sampler2D pathsTexture;
-
 uniform float t;
+uniform float totalradius;
 
+varying float D;
 varying float T;
+varying float P;
+
+attribute vec4 pathinfo;
 
 void main() {
+    float pathNumber = pathinfo.x;
+    float pathLength = pathinfo.y;
+    float randomOffset = pathinfo.z;
+    float posnInPath = pathinfo.w;
+
     T = fract(
-            position.z + (t / (position.y * 500.))
+            randomOffset + (t / (pathLength * 200.))
         );
+
+    T = (T * T);
 
     vec3 posn = texture2D(
         pathsTexture,
         vec2(
             T,
-            position.x
+            pathNumber
         )
     ).xyz;
+
+    D = length(posn) / (totalradius / 2.);
+
+    P = (posnInPath / ${TRAIL_LENGTH}.);
 
     vec4 mvPosition = viewMatrix * vec4(posn, 1.0);
 
     gl_Position = projectionMatrix * mvPosition;
-    gl_PointSize = ( 75. * ${
-        window.devicePixelRatio/* TODO could this error? it's definitely bad lol */
+
+    float sizeMod = 500. * (1. + smoothstep(.9, 1., 1. - D))
+                    * ((1. + (P)) * .5);
+
+    gl_PointSize = ( sizeMod * ${
+        /* TODO could this error? it's definitely bad lol */
+        window.devicePixelRatio
     }. / -mvPosition.z );
 }
     `,
     fragmentShader: `
+varying float D;
 varying float T;
+varying float P;
 
 void main() {
     float rad = length(gl_PointCoord-0.5);
-    float a = smoothstep(0., .1, 1. - T)
-            * (1. - smoothstep(.25, .5, rad));
+    float a = smoothstep(0., .5, 1. - T)
+            * (1. - smoothstep(.0, .45, rad))
+            * (1. - smoothstep(.0, .45, rad))
+            * P;
+            //* (1. - D);
 
     gl_FragColor = vec4(1., 1., 1., a);
 }
